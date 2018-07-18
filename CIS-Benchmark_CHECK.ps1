@@ -7,7 +7,7 @@
 
     Write-Host "1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored)" -ForegroundColor Gray
     $all_ms_users_not_mfa = $Users | where {$_.StrongAuthenticationRequirements.count -eq 0}
-if ($all_ms_users_not_mfa -eq 0) {Write-Host "`t1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored) PASSED" -ForegroundColor Green}
+if ($all_ms_users_not_mfa.count -eq 0) {Write-Host "`t1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored) PASSED" -ForegroundColor Green}
     else {
         Write-Host "`t1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored) FAILED" -ForegroundColor Red
         Write-Host "`tThere are $($all_ms_users_not_mfa.count) users without MFA:" -ForegroundColor Cyan
@@ -26,7 +26,7 @@ function cis13 #####1.3 Ensure that there are no guest users (Scored)
     )
     Write-Host "1.3 Ensure that there are no guest users (Scored)" -ForegroundColor Gray
     $all_ms_guest_users = $Users | where {$_.UserType -eq "Guest"}
-    if ($all_ms_guest_users -eq 0) {Write-Host "`t1.3 Ensure that there are no guest users (Scored) PASSED" -ForegroundColor Green}
+    if ($all_ms_guest_users.count -eq 0) {Write-Host "`t1.3 Ensure that there are no guest users (Scored) PASSED" -ForegroundColor Green}
     else {
         Write-Host "`t1.3 Ensure that there are no guest users (Scored) FAILED" -ForegroundColor Red
         Write-Host " `tThere are $($all_ms_guest_users.count) guest users:" -ForegroundColor Cyan
