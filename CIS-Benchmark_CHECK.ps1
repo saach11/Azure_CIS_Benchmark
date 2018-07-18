@@ -7,7 +7,7 @@
 
     Write-Host "1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored)" -ForegroundColor Gray
     $all_ms_users_not_mfa = $Users | where {$_.StrongAuthenticationRequirements.count -eq 0}
-if ($all_ms_users_not_mfa -eq 0) {Write-Host "`t1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored) PASSED" -ForegroundColor Green}
+    if ($all_ms_users_not_mfa.Count -eq 0) {Write-Host "`t1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored) PASSED" -ForegroundColor Green}
     else {
         Write-Host "`t1.1 & 1.2 Ensure that multi-factor authentication is enabled for all privileged and non-priveleged users (Scored) FAILED" -ForegroundColor Red
         Write-Host "`tThere are $($all_ms_users_not_mfa.count) users without MFA:" -ForegroundColor Cyan
@@ -26,7 +26,7 @@ function cis13 #####1.3 Ensure that there are no guest users (Scored)
     )
     Write-Host "1.3 Ensure that there are no guest users (Scored)" -ForegroundColor Gray
     $all_ms_guest_users = $Users | where {$_.UserType -eq "Guest"}
-    if ($all_ms_guest_users -eq 0) {Write-Host "`t1.3 Ensure that there are no guest users (Scored) PASSED" -ForegroundColor Green}
+    if ($all_ms_guest_users.count -eq 0) {Write-Host "`t1.3 Ensure that there are no guest users (Scored) PASSED" -ForegroundColor Green}
     else {
         Write-Host "`t1.3 Ensure that there are no guest users (Scored) FAILED" -ForegroundColor Red
         Write-Host " `tThere are $($all_ms_guest_users.count) guest users:" -ForegroundColor Cyan
@@ -257,10 +257,10 @@ function cis52 #####5.2 Ensure that Activity Log Retention is set 365 days or gr
                 }
         }
 
-    if ($nr_not_compliant_profiles.count -eq 0) {Write-Host "`t5.2 Ensure that Activity Log Retention is set 365 days or greater (Scored) PASSED" -ForegroundColor Green}
+    if ($nr_not_compliant_profiles -eq 0) {Write-Host "`t5.2 Ensure that Activity Log Retention is set 365 days or greater (Scored) PASSED" -ForegroundColor Green}
     else {
         Write-Host "`t5.2 Ensure that Activity Log Retention is set 365 days or greater (Scored) FAILED" -ForegroundColor Red
-        Write-Host " `tThere are $($not_compliant_profiles.count) log Profiles with retention policy less than 365 days:" -ForegroundColor Cyan
+        Write-Host " `tThere are $($not_compliant_profiles) log Profiles with retention policy less than 365 days:" -ForegroundColor Cyan
         foreach ($name in $not_compliant_profiles)
             {
                 Write-Host "`t`t$($name.name)" -ForegroundColor Cyan
@@ -439,7 +439,7 @@ function cis73 #####7.3 Ensure that 'Data disks' are encrypted (Scored)
 
 Connect-MsolService
 Login-AzureRmAccount
-$msol_users = Get-MsolUser
+$msol_users = Get-MsolUser -MaxResults 100
 $all_roles = Get-AzureRmRoleDefinition
 $all_storage_accounts = Get-AzureRmStorageAccount
 az login
@@ -498,5 +498,3 @@ cis71 $all_vms "7.1 Ensure that VM agent is installed (Scored)"
 cis72 $all_vms "7.2 Ensure that 'OS disk' are encrypted (Scored)"
 cis73 $all_vms "7.3 Ensure that 'Data disks' are encrypted (Scored)"
 #Chapter 8
-
-
