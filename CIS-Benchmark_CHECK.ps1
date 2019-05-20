@@ -64,6 +64,8 @@ function cis22-219 #####2.2 - 2.19 Ensure that Security Center requirements are 
     )
     Write-Host "2.2 - 2.19 Ensure that Security Center requirements are met (Scored)" -ForegroundColor Gray
 
+    if ($content.value[0].properties.pricingConfiguration.selectedPricingTier -eq "Standard") {Write-Host "`t2.1 Ensure that standard pricing tier is selected (Scored) PASSED" -ForegroundColor Green}
+        else {Write-Host "`t2.1 Ensure that standard pricing tier is selected (Scored) FAILED" -ForegroundColor Red}
     if ($content.value[0].properties.logCollection -eq "On") {Write-Host "`t2.2 Ensure that 'Automatic provisioning of monitoring agent' is set to 'On' (Scored) PASSED" -ForegroundColor Green}
         else {Write-Host "`t2.2 Ensure that 'Automatic provisioning of monitoring agent' is set to 'On' (Scored) FAILED" -ForegroundColor Red}
     if ($content.value[0].properties.recommendations.patch -eq "On") {Write-Host "`t2.3 Ensure that 'System updates' is set to 'On' (Scored) PASSED" -ForegroundColor Green}
@@ -257,7 +259,7 @@ function cis52 #####5.2 Ensure that Activity Log Retention is set 365 days or gr
                 }
         }
 
-    if ($nr_not_compliant_profiles -eq 0) {Write-Host "`t5.2 Ensure that Activity Log Retention is set 365 days or greater (Scored) PASSED" -ForegroundColor Green}
+    if (($nr_not_compliant_profiles -eq 0) -and ($profiles.Count -ne 0)) {Write-Host "`t5.2 Ensure that Activity Log Retention is set 365 days or greater (Scored) PASSED" -ForegroundColor Green}
     else {
         Write-Host "`t5.2 Ensure that Activity Log Retention is set 365 days or greater (Scored) FAILED" -ForegroundColor Red
         Write-Host " `tThere are $($not_compliant_profiles) log Profiles with retention policy less than 365 days:" -ForegroundColor Cyan
@@ -439,7 +441,7 @@ function cis73 #####7.3 Ensure that 'Data disks' are encrypted (Scored)
 
 Connect-MsolService
 Login-AzureRmAccount
-$msol_users = Get-MsolUser -MaxResults 100
+$msol_users = Get-MsolUser -All $true
 $all_roles = Get-AzureRmRoleDefinition
 $all_storage_accounts = Get-AzureRmStorageAccount
 az login
