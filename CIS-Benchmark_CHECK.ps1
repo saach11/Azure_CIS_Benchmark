@@ -200,9 +200,9 @@ function cis37 #####3.7 Ensure that 'Public access level' is set to Private for 
     $not_compliant_containers = @()
     foreach ($storage_account in $storage)
         {
-            $storage_key = (Get-AzureRmStorageAccountKey -ResourceGroupName $($storage_account.ResourceGroupName) -Name $($storage_account.StorageAccountName))[0].Value
-            $storage_context = New-AzureStorageContext -StorageAccountName $($storage_account.StorageAccountName) -StorageAccountKey $storage_key
-            $all_containers = Get-AzureStorageContainer -Context $storage_context
+            $storage_key = (Get-AzStorageAccountKey -ResourceGroupName $($storage_account.ResourceGroupName) -Name $($storage_account.StorageAccountName))[0].Value
+            $storage_context = New-AzStorageContext -StorageAccountName $($storage_account.StorageAccountName) -StorageAccountKey $storage_key
+            $all_containers = Get-AzStorageContainer -Context $storage_context
             foreach ($container in $all_containers) 
                 {
                     if ($container.publicaccess -ne "Off") {
@@ -307,7 +307,7 @@ function cis513 #####5.13 Ensure that logging for Azure KeyVault is 'Enabled' (S
         {
             foreach ($keyvault in $keyvaults)
                 {
-                    $diagnostic_enabled += Get-AzureRmDiagnosticSetting -ResourceId $keyvault.ResourceId
+                    $diagnostic_enabled += Get-AzDiagnosticSetting -ResourceId $keyvault.ResourceId
                 }
             if ($diagnostic_enabled.count -eq $keyvaults.count -and $diagnostic_enabled -ne 0) {Write-Host "`t5.13 Ensure that logging for Azure KeyVault is 'Enabled' (Scored) PASSED" -ForegroundColor Green}
             else {Write-Host "`t5.13 Ensure that logging for Azure KeyVault is 'Enabled' (Scored) FAILED" -ForegroundColor Red}
@@ -362,7 +362,7 @@ function cis64 #####6.4 Ensure that Network Security Group Flow Log retention pe
                 {
                     if ($nsg.Location -eq $netwatcher.Location ) 
                         {
-                            $retention_days = (Get-AzureRmNetworkWatcherFlowLogStatus -NetworkWatcher $netwatcher -TargetResourceId $nsg.Id).RetentionPolicy.days
+                            $retention_days = (Get-AzNetworkWatcherFlowLogStatus -NetworkWatcher $netwatcher -TargetResourceId $nsg.Id).RetentionPolicy.days
                             if ($retention_days -lt 90) {$non_compliant_watchers ++}
                         }
                 }
@@ -413,7 +413,7 @@ function cis72 #####7.2 Ensure that 'OS disk' are encrypted (Scored)
     [int]$non_compliant_vms = 0
     foreach ($vm in $all_vms)
         {
-            $os_vol_encrypted = (Get-AzureRmVMDiskEncryptionStatus -ResourceGroupName $vm.ResourceGroupName -VMName $vm.Name).OsVolumeEncrypted
+            $os_vol_encrypted = (Get-AzVMDiskEncryptionStatus -ResourceGroupName $vm.ResourceGroupName -VMName $vm.Name).OsVolumeEncrypted
             if ($os_vol_encrypted -ne "Encrypted") {$non_compliant_vms++}
         }
     if ($non_compliant_vms -eq 0) {Write-Host "`t$cis_requirement PASSED" -ForegroundColor Green}
@@ -431,7 +431,7 @@ function cis73 #####7.3 Ensure that 'Data disks' are encrypted (Scored)
     [int]$non_compliant_vms = 0
     foreach ($vm in $all_vms)
         {
-            $data_vol_encrypted = (Get-AzureRmVMDiskEncryptionStatus -ResourceGroupName $vm.ResourceGroupName -VMName $vm.Name).DataVolumesEncrypted
+            $data_vol_encrypted = (Get-AzVMDiskEncryptionStatus -ResourceGroupName $vm.ResourceGroupName -VMName $vm.Name).DataVolumesEncrypted
             if ($data_vol_encrypted -ne "Encrypted") {$non_compliant_vms++}
         }
 
@@ -439,34 +439,60 @@ function cis73 #####7.3 Ensure that 'Data disks' are encrypted (Scored)
     else {Write-Host "`t$cis_requirement FAILED" -ForegroundColor Red}
 }
 
-Connect-MsolService
-Login-AzureRmAccount
-$msol_users = Get-MsolUser -All $true
-$all_roles = Get-AzureRmRoleDefinition
-$all_storage_accounts = Get-AzureRmStorageAccount
+#Write-Host "`n1. Connectign to AAD instance ..." -ForegroundColor Cyan
+#Connect-MsolService
+Write-Host "`n2. Connectign to Subscrption for Az.* modules ..." -ForegroundColor Cyan
+Login-AzAccount
+Write-Host "`n3. Connectign to subscription for az cli ..." -ForegroundColor Cyan
 az login
 
+#Installing required modules
+Write-Warning "`nInstalling required modules ..."
+Find-Module  Az.Resources | Install-Module -AllowClobber
+Get-Module Az.Resources -ListAvailable | where {$_.Version -eq "1.5.0"} | Import-Module
+Find-Module  Az.Profile | Install-Module -AllowClobber
+Find-Module Az.Insights | Install-Module -AllowClobber
+Find-Module Az.KeyVault | Install-Module -AllowClobber
+Get-Module Az.KeyVault -ListAvailable | where {$_.Version -eq "1.2.0"} | Import-Module
+Find-Module Az.Network | Install-Module -AllowClobber
+Get-Module Az.Network -ListAvailable | where {$_.Version -eq "1.10.0"} | Import-Module
+Find-Module Az.Compute | Install-Module -AllowClobber
+Get-Module Az.Compute -ListAvailable | where {$_.Version -eq "2.3.0"} | Import-Module
+Find-Module Az.Storage | Install-Module -AllowClobber
+Get-Module Az.Storage -ListAvailable | where {$_.Version -eq "1.4.0"} | Import-Module
+
+$Context = Get-AzContext -WarningAction SilentlyContinue
+Write-host "`nCurent context - '$($Context.Subscription.name)'`n" -ForegroundColor Yellow
+
+(Get-AzSubscription -WarningAction SilentlyContinue).Name
+$Subscription = Read-Host "`nSetting the right context (type subscription name)"
+Set-AzContext -SubscriptionName $Subscription
+
+#$msol_users = Get-MsolUser -All $true
+$all_roles = Get-AzRoleDefinition
+$all_storage_accounts = Get-AzStorageAccount
+
 $azure_profile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-$azure_context = Get-AzureRmContext
+$azure_context = Get-AzContext
 $client_profile = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azure_profile)
 $token = $client_profile.AcquireAccessToken($azure_context.Subscription.TenantId)
 $access_toke = "bearer $($token.AccessToken)"
 $headers = @{'Authorization'="$access_toke";'Accept'='application/json'}
-$subscription_id = (Get-AzureRmContext).Subscription.Id
+$subscription_id = (Get-AzContext).Subscription.Id
 $uri = "https://management.azure.com/subscriptions/$($subscription_id)/providers/microsoft.Security/policies?api-version=2015-06-01-preview"
 $content = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
-$all_log_profiles = Get-AzureRmLogProfile
-$all_resource_groups = Get-AzureRmResourceGroup
-$all_keyvaults = Get-AzureRmKeyVault
-$all_nsg = Get-AzureRmNetworkSecurityGroup
-$all_networkwatchers = Get-AzureRmNetworkWatcher
-$nw_locations = (Get-AzureRmResourceProvider -ProviderNamespace Microsoft.Network).ResourceTypes.Where{($_.ResourceTypeName -eq 'networkwatchers')}.Locations
-$all_vms = Get-AzureRmVM
+$all_log_profiles = Get-AzLogProfile
+$all_resource_groups = Get-AzResourceGroup
+$all_keyvaults = Get-AzKeyVault
+$all_nsg = Get-AzNetworkSecurityGroup
+$all_networkwatchers = Get-AzNetworkWatcher
+$nw_locations = (Get-AzResourceProvider -ProviderNamespace Microsoft.Network).ResourceTypes.Where{($_.ResourceTypeName -eq 'networkwatchers')}.Locations
+$all_vms = Get-AzVM
 
 
 #Chapter 1
-cis11-12 $msol_users
-cis13 $msol_users
+#cis11-12 $msol_users
+#cis13 $msol_users
 cis123 $all_roles
 #Chapter 2
 cis22-219 $content
